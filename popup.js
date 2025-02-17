@@ -131,71 +131,41 @@ document.getElementById('downloadBtn').addEventListener('click', () => {
             chrome.scripting.executeScript({
                 target: { tabId: tabId },
                 func: () => {
-                    // Create a new JSZip instance
-                    const zip = new JSZip();
+                    const url = window.location.href;
+                    const hasLicenseFree = url.includes('license=free');
+                    if (!hasLicenseFree) {
+                        if (confirm('This will download license-free images only. Would you like to switch to license-free images? MAKE SURE TO CLICK DOWNLOAD AGAIN AFTER SWITCHING TO LICENSE-FREE IMAGES')) {
+                            // Add license=free parameter
+                            const newUrl = url + (url.includes('?') ? '&' : '?') + 'license=free';
+                            window.location.href = newUrl;
+                            return { reload: true };
+                        }
+                        return { reload: false };
+                    }
+                    return { reload: false, hasLicenseFree: true };
+                }
+            }, (results) => {
+                if (chrome.runtime.lastError) {
+                    console.error('Error:', chrome.runtime.lastError);
+                    return;
+                }
 
-                    // Find all image figures
-                    const figures = document.querySelectorAll('figure[data-testid="photo-grid-masonry-figure"]');
-                    const urlsToDownload = [];
+                const result = results[0].result;
 
-                    figures.forEach(figure => {
-                        // Find the main image element
-                        const img = figure.querySelector('img[srcset]');
-                        if (img) {
-                            // Get the srcset attribute
-                            const srcset = img.getAttribute('srcset');
-                            // Split srcset into individual sources
-                            const sources = srcset.split(',').map(s => s.trim());
-                            // Get the last (highest resolution) source
-                            const highestRes = sources[sources.length - 1];
-                            // Extract just the URL (remove size and descriptor)
-                            const url = highestRes.split(' ')[0];
-                            urlsToDownload.push(url);
+                if (result.reload) {
+                    // Wait for page to reload before starting download
+                    chrome.tabs.onUpdated.addListener(function listener(updatedTabId, info) {
+                        if (updatedTabId === tabId && info.status === 'complete') {
+                            chrome.tabs.onUpdated.removeListener(listener);
+                            startUnsplashDownload(tabId);
                         }
                     });
-
-                    if (urlsToDownload.length === 0) {
-                        alert('No images found on this page');
-                        return;
-                    }
-
-                    // Download function for individual images
-                    async function downloadImage(url, filename) {
-                        console.log(`Starting download for ${filename} from ${url}`);
-                        try {
-                            const response = await fetch(url);
-                            if (!response.ok) {
-                                throw new Error(`HTTP error! status: ${response.status}`);
-                            }
-                            const blob = await response.blob();
-                            zip.file(filename, blob);
-                            console.log(`Successfully added ${filename} to ZIP`);
-                        } catch (error) {
-                            console.error(`Failed to download ${url}:`, error);
-                        }
-                    }
-
-                    // Download all images
-                    Promise.all(
-                        urlsToDownload.map((url, index) =>
-                            downloadImage(url, `unsplash_image_${index + 1}.jpg`)
-                        )
-                    ).then(() => {
-                        console.log("All images processed, generating ZIP");
-                        return zip.generateAsync({ type: "blob" });
-                    }).then(content => {
-                        console.log("ZIP generated, initiating download");
-                        const link = document.createElement('a');
-                        link.href = URL.createObjectURL(content);
-                        link.download = "unsplash_images.zip";
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-                        console.log("Download initiated");
-                    }).catch(error => {
-                        console.error("Error in download process:", error);
-                        alert("Error during download process. Check console for details.");
-                    });
+                } else if (result.hasLicenseFree) {
+                    // Already on license-free page, start download
+                    startUnsplashDownload(tabId);
+                } else {
+                    // User declined to switch to license-free
+                    alert('Download canceled. Please switch to license-free images to download.');
                 }
             });
         } else if (selectedSite === 'cosmos') {
