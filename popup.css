@@ -34,3 +34,14 @@ button {
 button:hover {
     background-color: #45a049;
 }
+
+.site-selector a {
+    color: #666;
+    text-decoration: none;
+    font-size: 0.9em;
+    margin-left: 5px;
+}
+
+.site-selector a:hover {
+    text-decoration: underline;
+}
