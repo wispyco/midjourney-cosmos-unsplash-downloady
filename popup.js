@@ -56,14 +56,16 @@ document.getElementById('downloadBtn').addEventListener('click', () => {
                                 let backgroundImage = style.getPropertyValue('background-image');
                                 console.log(`Element ${index + 1} background-image:`, backgroundImage);
 
-                                let urlMatch = backgroundImage.match(/url\("(.*?)"\)/);
-                                if (urlMatch) {
-                                    let url = urlMatch[1];
-                                    let updatedUrl = url.replace(/\/[0-9]+_[0-9]+(_[0-9]+)?(_[A-Za-z])?\\.webp$/, '/0_0.jpeg');
+                                // Extract all URLs from the image-set
+                                let urls = backgroundImage.match(/url\("([^"]+)"\)/g);
+                                if (urls && urls.length >= 2) {
+                                    // Get the second URL (the 2x version)
+                                    let url = urls[1].match(/url\("([^"]+)"\)/)[1];
+                                    let updatedUrl = url.replace(/\/[0-9]+_[0-9]+(_[0-9]+)?(_[A-Z])?.webp$/, '/0_0.jpeg');
                                     imageUrls.push(updatedUrl);
-                                    console.log(`Extracted image ${index + 1}: ${updatedUrl}`);
+                                    console.log(`Extracted 2x image ${index + 1}: ${updatedUrl}`);
                                 } else {
-                                    console.log(`Element ${index + 1}: No valid background image found`);
+                                    console.log(`Element ${index + 1}: No valid image-set found`);
                                 }
                             } catch (error) {
                                 console.error(`Error processing element ${index + 1}:`, error);
